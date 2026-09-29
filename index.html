@@ -33,6 +33,18 @@ body[data-theme="claro"]{
   --txt:#1a2233; --mut:#6b7690; --acc:#4f46e5; --acc-soft:rgba(79,70,229,.08);
   --red:#dc2626; --orange:#d97706; --green:#059669;
 }
+body[data-theme="newlife"]{
+  --bg:#f6f4f1; --panel:#ffffff; --panel2:#f0ebe5; --line:#e2d9cf;
+  --txt:#2b2522; --mut:#8d8378; --acc:#a31621; --acc-soft:rgba(163,22,33,.07);
+  --red:#c0392b; --orange:#d97706; --green:#1e8449;
+}
+body[data-theme="newlife"] .viewtabs button.active,
+body[data-theme="newlife"] .linebtns button.active,
+body[data-theme="newlife"] button{background:var(--acc);color:#fff;border-color:var(--acc)}
+body[data-theme="newlife"] tbody tr:hover{background:rgba(163,22,33,.04)}
+.watermark{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:0}
+.watermark img{width:min(72vmin,640px);height:auto;opacity:.05}
+body>*:not(.watermark){position:relative;z-index:1}
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--bg);color:var(--txt);font-family:'Inter',system-ui,-apple-system,sans-serif;transition:background .3s,color .3s;padding:16px 28px;max-width:1680px;margin:0 auto}
 header{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-bottom:16px}
@@ -114,6 +126,7 @@ tbody tr:hover{background:rgba(212,175,55,.05)}
 </style>
 </head>
 <body>
+<div class="watermark"><img src="logo.png" alt="New Life Diagnóstico"></div>
 <header>
   <h1>📦 NEW LIFE - ESTOQUE</h1>
   <span id="modeBadge" class="badge snap">DADOS DE 29/09</span>
@@ -433,7 +446,7 @@ function fmtCob(dias){
 }
 function sortBy(k){ if(sortKey===k) sortAsc=!sortAsc; else {sortKey=k;sortAsc=true;} render(); }
 function toggleSetup(){ const s=document.getElementById("setup"); s.style.display=s.style.display==="block"?"none":"block"; }
-document.body.dataset.theme="dourado";
+document.body.dataset.theme="newlife";
 
 function agoraSP(){
   try{ return new Date().toLocaleString("pt-BR",{timeZone:"America/Sao_Paulo",day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"}).replace(",",""); }
