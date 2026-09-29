@@ -62,6 +62,9 @@ h1{font-size:22px;letter-spacing:.3px;font-family:'Sora','Inter',sans-serif;font
 .linebtns button.active{background:var(--acc);color:#111;border-color:var(--acc)}
 .linebtns button:hover{filter:brightness(1.15)}
 #cliBtns button{flex:0 1 auto}
+#cliDateBar button{flex:0 1 auto;min-width:0;padding:8px 12px;font-size:12px}
+.mbar.dim{opacity:.28}
+.mbar.hl .col{outline:2px solid var(--acc);outline-offset:2px}
 .ckpis{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0}
 .ckpi{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 16px;min-width:128px}
 .ckpi .v{font-size:22px;font-weight:800;color:var(--txt)}
@@ -227,6 +230,7 @@ tbody tr:hover{background:rgba(212,175,55,.05)}
 </div>
 
 <div id="viewClientes" style="display:none">
+  <div class="linebtns" id="cliDateBar" style="margin-bottom:10px"></div>
   <div class="linebtns" id="cliBtns"></div>
   <div id="cliDetail"><p style="color:var(--mut)">Carregando dados de clientes…</p></div>
 </div>
@@ -464,19 +468,22 @@ function setView(v){
 }
 
 /* ===== Módulo Clientes ===== */
-let CLI=null;
+let CLI=null, cliMes=-1, cliLinha=null, cliSel={t:"c",i:0};
 const CLI_MESES=["JAN","FEV","MAR","ABR","MAI","JUN","JUL","AGO","SET"];
 const fmtN=n=>Number(n).toLocaleString("pt-BR");
 async function loadCli(){
   const det=document.getElementById("cliDetail");
   try{
-    const r=await fetch("clientes.json?v=202609292024");
+    const r=await fetch("clientes.json?v=202609292027");
     if(!r.ok) throw 0;
     CLI=await r.json();
   }catch(e){
     det.innerHTML='<p style="color:var(--red);font-weight:700">Não foi possível carregar os dados de clientes.</p>';
     return;
   }
+  document.getElementById("cliDateBar").innerHTML=
+    '<button class="active" onclick="setCliMes(-1,this)">📅 Geral</button>'+
+    CLI_MESES.map((m,i)=>`<button onclick="setCliMes(${i},this)">📅 ${m}</button>`).join("");
   const bb=document.getElementById("cliBtns");
   bb.innerHTML=CLI.clientes.map((c,i)=>{
     const em=c.interno?"🏠":"🏥";
@@ -484,17 +491,33 @@ async function loadCli(){
   }).join("")+'<button onclick="setClienteIdx(\'perdas\',this)">⚠️ Perdas</button>';
   setClienteIdx(0,bb.querySelector("button"));
 }
+function setCliMes(m,btn){
+  cliMes=m; cliLinha=null;
+  document.querySelectorAll("#cliDateBar button").forEach(b=>b.classList.remove("active"));
+  if(btn) btn.classList.add("active");
+  rerenderCli();
+}
+function setCliLinha(l){
+  cliLinha=(cliLinha===l?null:l);
+  rerenderCli();
+}
+function rerenderCli(){
+  if(cliSel.t==="perdas") return renderPerdas();
+  renderCli(CLI.clientes[cliSel.i]);
+}
 function setClienteIdx(i,btn){
   document.querySelectorAll("#cliBtns button").forEach(b=>b.classList.remove("active"));
   if(btn) btn.classList.add("active");
-  if(i==="perdas") return renderPerdas();
-  renderCli(CLI.clientes[i]);
+  cliLinha=null;
+  if(i==="perdas"){cliSel={t:"perdas"};return renderPerdas();}
+  cliSel={t:"c",i}; renderCli(CLI.clientes[i]);
 }
-function cliBars(meses){
+function cliBars(meses,hl){
   const mx=Math.max(...meses,1);
   return '<div class="mbars">'+meses.map((v,i)=>{
     const h=Math.max(4,Math.round(v/mx*130));
-    return `<div class="mbar" title="${CLI_MESES[i]}: ${fmtN(v)} un"><div class="mv">${v?fmtN(v):""}</div><div class="col" style="height:${h}px"></div><div class="ml">${CLI_MESES[i]}</div></div>`;
+    const cls=(hl>=0)?(i===hl?"mbar hl":"mbar dim"):"mbar";
+    return `<div class="${cls}" title="${CLI_MESES[i]}: ${fmtN(v)} un"><div class="mv">${v?fmtN(v):""}</div><div class="col" style="height:${h}px"></div><div class="ml">${CLI_MESES[i]}</div></div>`;
   }).join("")+"</div>";
 }
 function cliTrend(meses){
@@ -506,37 +529,53 @@ function cliTrend(meses){
   return ["➡ estável","flat"];
 }
 function renderCli(c){
-  const totGeral=CLI.clientes.reduce((s,x)=>s+x.total,0);
-  const part=totGeral? (c.total/totGeral*100):0;
-  const [tr]=cliTrend(c.meses);
+  const m=cliMes;
+  const tot=m>=0?c.meses[m]:c.total;
+  const totGeral=m>=0?CLI.clientes.reduce((s,x)=>s+x.meses[m],0):CLI.clientes.reduce((s,x)=>s+x.total,0);
+  const part=totGeral?(tot/totGeral*100):0;
+  let prods=c.produtos.map(p=>({d:p.d,l:p.l,v:m>=0?p.ms[m]:p.t,med:m>=0?p.ms[m]:p.m}));
+  if(cliLinha) prods=prods.filter(p=>p.l===cliLinha);
+  prods=prods.filter(p=>p.v>0).sort((a,b)=>b.v-a.v);
+  let tr="—";
+  if(m<0){tr=cliTrend(c.meses)[0];}
+  else if(m>0){const a=c.meses[m],b=c.meses[m-1];
+    if(b>0){const p=Math.round((a/b-1)*100);tr=p>5?`▲ ${p}%`:(p<-5?`▼ ${-p}%`:"➡ estável");}
+    else tr=a>0?"▲ novo":"—";}
   const badge=c.interno?'<span class="tag interno">consumo interno</span>':"";
-  const linhas=Object.entries(c.linhas).map(([l,v])=>`<span class="chip">${esc(l)} · <b>${fmtN(v)} un</b></span>`).join("");
-  const rows=c.produtos.map(p=>`<tr><td>${esc(p.d)}</td><td>${esc(p.l)}</td><td style="text-align:right"><b>${fmtN(p.t)} un</b></td><td style="text-align:right">${String(p.m).replace(".",",")}/mês</td></tr>`).join("");
+  const linhas=Object.keys(c.linhas);
+  const lbtns='<button class="'+(!cliLinha?"active":"")+'" onclick="setCliLinha(null)">Todas</button>'+
+    linhas.map(l=>`<button class="${cliLinha===l?"active":""}" onclick="setCliLinha('${l}')">${esc(l)}</button>`).join("");
+  const mesLbl=m>=0?CLI_MESES[m]+"/26":"Total";
+  const rows=prods.map(p=>`<tr><td>${esc(p.d)}</td><td>${esc(p.l)}</td><td style="text-align:right"><b>${fmtN(p.v)} un</b></td>${m<0?`<td style="text-align:right">${String(p.med).replace(".",",")}/mês</td>`:""}</tr>`).join("");
+  const colspan=m<0?4:3;
   document.getElementById("cliDetail").innerHTML=`
     <div class="cli-head"><h2>${c.interno?"🏠":"🏥"} ${esc(c.nome)}</h2>${badge}</div>
     <div class="ckpis">
-      <div class="ckpi"><div class="v">${fmtN(c.total)} un</div><div class="l">Total jan–set/26</div></div>
-      <div class="ckpi"><div class="v">${String(c.media).replace(".",",")}/mês</div><div class="l">Média mensal</div></div>
-      <div class="ckpi"><div class="v">${c.n_produtos}</div><div class="l">Produtos consumidos</div></div>
+      <div class="ckpi"><div class="v">${fmtN(tot)} un</div><div class="l">${m>=0?"Total em "+CLI_MESES[m]+"/26":"Total jan–set/26"}</div></div>
+      ${m<0?`<div class="ckpi"><div class="v">${String(c.media).replace(".",",")}/mês</div><div class="l">Média mensal</div></div>`:""}
+      <div class="ckpi"><div class="v">${prods.length}</div><div class="l">Produtos consumidos${m>=0?" no mês":""}</div></div>
       <div class="ckpi"><div class="v">${part.toFixed(1).replace(".",",")}%</div><div class="l">Do consumo total</div></div>
-      <div class="ckpi"><div class="v">${tr}</div><div class="l">Tendência 3 meses</div></div>
+      <div class="ckpi"><div class="v">${tr}</div><div class="l">${m>=0?"Vs mês anterior":"Tendência 3 meses"}</div></div>
     </div>
     <div class="cli-sec"><b>Consumo mensal (unidades)</b></div>
-    ${cliBars(c.meses)}
-    <div class="cli-sec"><b>Por linha</b></div>
-    <div class="chips">${linhas}</div>
-    <div class="cli-sec"><b>Produtos consumidos</b>${c.tem_mais?' <span style="color:var(--mut);font-weight:400;font-size:12px">(top 25)</span>':""}</div>
-    <div class="tablewrap"><table><thead><tr><th>Produto</th><th>Linha</th><th style="text-align:right">Total</th><th style="text-align:right">Média/mês</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+    ${cliBars(c.meses,m)}
+    <div class="cli-sec"><b>Por linha</b> <span style="color:var(--mut);font-weight:400;font-size:12px">— clique para filtrar</span></div>
+    <div class="linebtns" style="margin-bottom:4px">${lbtns}</div>
+    <div class="cli-sec"><b>Produtos consumidos</b><span style="color:var(--mut);font-weight:400;font-size:12px"> (${mesLbl}${m<0?" · jan–set/26":""}${cliLinha?" · "+esc(cliLinha):""}${c.tem_mais&&m<0?" · top 25":""})</span></div>
+    <div class="tablewrap"><table><thead><tr><th>Produto</th><th>Linha</th><th style="text-align:right">${mesLbl}</th>${m<0?'<th style="text-align:right">Média/mês</th>':""}</tr></thead><tbody>${rows||`<tr><td colspan="${colspan}" style="color:var(--mut)">Nenhum produto neste filtro.</td></tr>`}</tbody></table></div>`;
 }
 function renderPerdas(){
-  const blocks=CLI.perdas.map(p=>`
+  const m=cliMes;
+  const blocks=CLI.perdas.map(p=>{
+    const tot=m>=0?p.meses[m]:p.total;
+    return `
     <div class="cli-head"><h2>⚠️ ${esc(p.nome)}</h2><span class="tag warn">${esc(p.linha)}</span></div>
     <div class="ckpis">
-      <div class="ckpi"><div class="v">${fmtN(p.total)} un</div><div class="l">Total jan–set/26</div></div>
-      <div class="ckpi"><div class="v">${String(p.media).replace(".",",")}/mês</div><div class="l">Média mensal</div></div>
+      <div class="ckpi"><div class="v">${fmtN(tot)} un</div><div class="l">${m>=0?"Total em "+CLI_MESES[m]+"/26":"Total jan–set/26"}</div></div>
+      ${m<0?`<div class="ckpi"><div class="v">${String(p.media).replace(".",",")}/mês</div><div class="l">Média mensal</div></div>`:""}
     </div>
     <div class="cli-sec"><b>Por mês (unidades)</b></div>
-    ${cliBars(p.meses)}`).join("");
+    ${cliBars(p.meses,m)}`;}).join("");
   document.getElementById("cliDetail").innerHTML=blocks||'<p style="color:var(--mut)">Nenhuma perda registrada no período.</p>';
 }
 
