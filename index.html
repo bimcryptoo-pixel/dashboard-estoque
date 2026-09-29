@@ -45,6 +45,10 @@ h1{font-size:22px;letter-spacing:.3px;font-family:'Sora','Inter',sans-serif;font
 .viewtabs button{flex:1;background:var(--panel);color:var(--mut);border:1px solid var(--line);padding:11px 8px;border-radius:10px;font-weight:700;font-size:14px;cursor:pointer}
 .viewtabs button.active{background:var(--acc);color:#111;border-color:var(--acc)}
 .viewtabs button:hover{filter:brightness(1.15)}
+.linebtns{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.linebtns button{flex:1;min-width:120px;background:var(--panel);color:var(--mut);border:1px solid var(--line);padding:10px 8px;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer}
+.linebtns button.active{background:var(--acc);color:#111;border-color:var(--acc)}
+.linebtns button:hover{filter:brightness(1.15)}
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px}
 .kpi{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px}
 .kpi .n{font-size:28px;font-weight:800;font-family:'Sora','Inter',sans-serif}
@@ -136,12 +140,16 @@ tbody tr:hover{background:rgba(212,175,55,.05)}
   <p style="margin-top:8px;color:var(--mut)">Só as abas de estoque ficam públicas (sem valores, só quantidades). As abas mensais continuam privadas.</p>
 </div>
 
+<div class="linebtns" id="lineBtns">
+  <button class="active" onclick="setLinha('',this)">🧪 Todas</button>
+  <button onclick="setLinha('Coagulação',this)">🩸 Coagulação</button>
+  <button onclick="setLinha('Gasometria',this)">🫁 Gasometria</button>
+  <button onclick="setLinha('Beckman',this)">🔬 Beckman</button>
+  <button onclick="setLinha('Vyttra',this)">🧬 Vyttra</button>
+</div>
+
 <div class="controls">
-  <input id="q" placeholder="🔍 Buscar produto ou código..." oninput="render()">
-  <select id="fLinha" onchange="render()">
-    <option value="">Todas as linhas</option>
-    <option>Coagulação</option><option>Gasometria</option><option>Beckman</option><option>Vyttra</option>
-  </select>
+  <input id="q" placeholder="🔍 Buscar produto ou código..." oninput="render()" style="max-width:560px">
   <select id="fStatus" onchange="render()">
     <option value="">Todos os status</option>
     <option value="zero">Zerado</option><option value="crit">Crítico</option>
@@ -198,9 +206,16 @@ const SHEETS = [
   {linha:"Vyttra",     id:"1flenkubNTCOx9aReher4wJ5coArcWx7FItsJwkjz3U4", aba:"ESTOQUE VYTTRA", codigo:false},
 ];
 
-let live = false, sortKey = "desc", sortAsc = true, view = "tabela";
+let live = false, sortKey = "desc", sortAsc = true, view = "tabela", linhaSel = "";
 let consMap = {};
 let produtos = [];
+
+function setLinha(v, btn){
+  linhaSel = v;
+  document.querySelectorAll("#lineBtns button").forEach(b=>b.classList.remove("active"));
+  btn.classList.add("active");
+  render();
+}
 
 function buildBase(){
   consMap = {}; produtos = [];
@@ -298,7 +313,7 @@ const CLS_COLOR = {zero:"var(--red)", crit:"var(--red)", baixo:"var(--orange)", 
 
 function filteredList(){
   const q=document.getElementById("q").value.toUpperCase();
-  const fl=document.getElementById("fLinha").value, fs=document.getElementById("fStatus").value;
+  const fl=linhaSel, fs=document.getElementById("fStatus").value;
   let list=produtos.map(p=>({...p, m:metrics(p)}));
   if(q) list=list.filter(p=>(p.desc+" "+p.codigo).toUpperCase().includes(q));
   if(fl) list=list.filter(p=>p.linha===fl);
