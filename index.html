@@ -40,7 +40,7 @@ h1{font-size:22px;letter-spacing:.3px;font-family:'Sora','Inter',sans-serif;font
 .badge{font-size:12px;padding:5px 12px;border-radius:20px;font-weight:600}
 .badge.live{background:rgba(61,214,140,.15);color:var(--green);border:1px solid var(--green)}
 .badge.snap{background:rgba(245,165,36,.12);color:var(--orange);border:1px solid var(--orange)}
-#upd{font-size:12px;color:var(--mut)}
+#upd{font-size:12px;color:var(--mut);font-weight:600}
 .viewtabs{display:flex;gap:8px;margin-bottom:16px}
 .viewtabs button{flex:1;background:var(--panel);color:var(--mut);border:1px solid var(--line);padding:11px 8px;border-radius:10px;font-weight:700;font-size:14px;cursor:pointer}
 .viewtabs button.active{background:var(--acc);color:#111;border-color:var(--acc)}
@@ -115,7 +115,7 @@ tbody tr:hover{background:rgba(212,175,55,.05)}
   <span id="modeBadge" class="badge snap">DADOS DE 29/09</span>
   <span id="upd"></span>
   <span style="flex:1"></span>
-  <button class="ghost" onclick="toggleSetup()">⚙️ Ativar tempo real</button>
+  <button class="ghost" id="btnSetup" onclick="toggleSetup()">⚙️ Ativar tempo real</button>
   <button onclick="refreshLive(true)">🔄 Atualizar agora</button>
 </header>
 
@@ -420,13 +420,20 @@ function sortBy(k){ if(sortKey===k) sortAsc=!sortAsc; else {sortKey=k;sortAsc=tr
 function toggleSetup(){ const s=document.getElementById("setup"); s.style.display=s.style.display==="block"?"none":"block"; }
 document.body.dataset.theme="dourado";
 
+function agoraSP(){
+  try{ return new Date().toLocaleString("pt-BR",{timeZone:"America/Sao_Paulo",day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"}).replace(",",""); }
+  catch(e){ return new Date().toLocaleString("pt-BR").slice(0,16); }
+}
+
 async function refreshLive(manual){
   const badge=document.getElementById("modeBadge"), upd=document.getElementById("upd");
   try{
     const data=await fetchLive();
     produtos=data; live=true;
     badge.className="badge live"; badge.textContent="● TEMPO REAL";
-    upd.textContent="atualizado agora";
+    upd.textContent="🕒 Última atualização: "+agoraSP();
+    document.getElementById("btnSetup").style.display="none";
+    document.getElementById("setup").style.display="none";
     render();
   }catch(e){
     if(manual) toggleSetup();
@@ -437,7 +444,7 @@ function showSnapshot(){
   const badge=document.getElementById("modeBadge"), upd=document.getElementById("upd");
   live=false;
   badge.className="badge snap"; badge.textContent="DADOS DE "+DB.gerado_em.split(" ")[0];
-  upd.textContent="snapshot "+DB.gerado_em;
+  upd.textContent="🕒 Última atualização: "+DB.gerado_em+" (snapshot)";
   render();
 }
 
